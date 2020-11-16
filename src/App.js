@@ -9,8 +9,11 @@ import { format, subDays } from 'date-fns';
 import Filter from './components/Filter';
 import './App.css';
 
+const setFavoritesInStorage = (favorites) => {
+  window.localStorage.setItem('favorites', JSON.stringify(favorites));
+};
 
-const getFavorites = () => {
+const getFavoritesFromStorage = () => {
   const localStorageData = window.localStorage.getItem('favorites');
   const favoritedRepositories = localStorageData
     ? JSON.parse(localStorageData)
@@ -19,23 +22,20 @@ const getFavorites = () => {
 };
 
 const mapData = (data) => {
-  const favoritedRepositories = getFavorites();
-  
-  
-  return data.map(({ id, name, description, html_url, stargazers_count, language }) => {
-    const isStarred = favoritedRepositories.some(
-      (repository) => repository.id === id
-    );
-    return {
-      id,
-      name,
-      description,
-      url: html_url,
-      gitHubStars: stargazers_count,
-      isStarred: isStarred,
-      language,
-    };
-  });
+  console.log({ data });
+  const favoritedRepositories = getFavoritesFromStorage();
+
+  return data.map(
+    (repo) => {
+      const isStarred = favoritedRepositories.some(
+        (repository) => repository.id === repo.id
+      );
+      return {
+        ...repo,
+        isStarred: isStarred,
+      };
+    }
+  );
 };
 
 function App({ getMyStars }) {
@@ -45,15 +45,17 @@ function App({ getMyStars }) {
   // };
   const [repositories, setRepositories] = useState([]);
   const [isLoading, setLoading] = useState(false);
-  const languages = new Set(repositories.map((repository) => repository.language).filter(lang => lang)); 
+  const languages = new Set(
+    repositories.map((repository) => repository.language).filter((lang) => lang)
+  );
 
   const toggleFavorite = (item) => {
-    let favorites = getFavorites();
+    let favorites = getFavoritesFromStorage();
     // if its already there remove it and if you're in the my favs tab, then re-render the favorites to remove it
     if (favorites.some((repo) => repo.id === item.id)) {
       // Remove Favorite
       favorites = favorites.filter((repo) => repo.id !== item.id);
-      window.localStorage.setItem('favorites', JSON.stringify(favorites));
+      setFavoritesInStorage(favorites);
 
       if (selectedTab === 'My favorites') {
         // my favories tab --> set the list to the favorites only
@@ -64,11 +66,10 @@ function App({ getMyStars }) {
         setRepositories(mapData(repositories));
       }
     } else {
-      // Add favorite
-      // if its not already in the favorites add it there then call
-      // setRepositories / mapData to update the "isStarred" property with the new value from localStorage
+    
       favorites.push(item);
-      window.localStorage.setItem('favorites', JSON.stringify(favorites));
+      setFavoritesInStorage(favorites);
+
       // update the starred list
       setRepositories(mapData(repositories));
     }
@@ -76,7 +77,7 @@ function App({ getMyStars }) {
 
   const handleFavoritesTabClicked = () => {
     setSelectedTab('My favorites');
-    const favorites = getFavorites();
+    const favorites = getFavoritesFromStorage();
     setRepositories(mapData(favorites));
   };
 
@@ -93,10 +94,10 @@ function App({ getMyStars }) {
       fetchRepositories({
         sort: 'stars',
         order: 'desc',
-        q: `created`:>${istoDate}`,
+        q: `created:>${istoDate}`,
       }).then((repos) => {
         setLoading(false);
-        setRepositories(mapData(repos.items));
+        setRepositories(mapData(repos));
       });
     }
   };
@@ -104,6 +105,7 @@ function App({ getMyStars }) {
   useEffect(() => {
     handleBestOfTheWeekTabClicked();
   }, []);
+
   const handleStarClicked = (item) => (e) => {
     toggleFavorite(item);
   };
@@ -134,5 +136,3 @@ function App({ getMyStars }) {
   );
 }
 export default App;
-
-
